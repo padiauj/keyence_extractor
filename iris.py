@@ -9,6 +9,10 @@ import xml.etree.ElementTree as ET
 import subprocess
 import re
 import uuid 
+import argparse
+import shutil
+import cv2
+from ast import literal_eval as make_tuple
 
 JAR_PATH = "MIST-wdeps.jar"
 BCF_METADTA_FILENAME = "GroupFileProperty/ImageJoint/properties.xml"
@@ -28,7 +32,9 @@ DEFAULT_STITCHING_OPTIONS = {
     "startRow": "0",
     "startCol": "0",
     "extentWidth": "12",
-    "extentHeight": "8"
+    "extentHeight": "8",
+    "blendingMode": "linear",
+    "blendingAlpha": "0.5",
 }
 
 def get_tag_value(root, tag):
@@ -89,17 +95,19 @@ def get_patterned_files(path, pattern):
         else:
             return patterned_files
 
-def stitch(image_dir, output_dir, rows, cols, pattern):
+def stitch(image_dir, output_dir, rows, cols, pattern, positions=None):
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
     options = DEFAULT_STITCHING_OPTIONS
     options["imageDir"] = image_dir
     options["outputPath"] = output_dir
-    options["gridWidth"] = columns
+    options["gridWidth"] = cols
     options["gridHeight"] = rows
-    options["extentWidth"] = columns
+    options["extentWidth"] = cols
     options["extentHeight"] = rows
+    if (positions):
+        options["globalPositionsFile"] = positions
 
     args = []
     for switch in options:
@@ -108,12 +116,43 @@ def stitch(image_dir, output_dir, rows, cols, pattern):
 
     subprocess.call(["java", "-jar", JAR_PATH] + args)
 
+def from_colon_format(s):
+    """
+    Extracts the <value> from a string formatted thusly:
+    "<field>: <value>"
+    """
+    return s.split(":")[1].strip()
+
+def extract_positions(positions_path):
+    """
+    Extracts position information from a global positions file
+    """
+    positions = []
+    with open(positions_path, 'r') as f:
+        for line in f:
+            line = line.strip()
+            fields = line.split(";")
+            positions.append({
+                "file":from_colon_format(fields[0]),
+                "position": from_colon_format(fields[2]),
+                "grid": from_colon_format(fields[3])
+                })
+    return corners
+
+def output_positions(positions, out_path, channel, replace):
+    with open(out_path, 'w') as out:
+        for p in positions:
+            out.write("file: %s; corr: %s; position: %s; grid: %s;\n" % 
+                    (p['file'].replace(channel, replace), p['corr'], p['position'], p['grid']))
 
 options = DEFAULT_STITCHING_OPTIONS
-TEMP_IMG_DIR = "/home/padiauj/image_analysis/XY02/CH1/cleaned/gray"
-TEMP_UNST_DIR = "/home/padiauj/image_analysis/XY02/"
+SRC_DIR = "/home/padiauj/image_analysis/XY02/"
+stitch_dir = os.path.join(SRC_DIR, "stitched")
+rows, cols = get_row_col(SRC_DIR)
 
-file_pattern = 
-
-patterned_files = get_patterned_files("/home/padiauj/image_analysis/XY02/", "1_XY02_{ppppp}_CH1.tif"))
-prep_single_channel(patterned_files, outdir)
+channels = ["CH1", "CH2", "CH3", "CH4", "Overlay"]
+pattern = "1_XY02_{ppppp}_CH1.tif"
+image_dir = os.path.join(stitch_dir, "CH1")
+patterned_files = get_patterned_files(SRC_DIR, pattern)
+prep_single_channel(patterned_files, image_dir)
+stitch(image_dir, image_dir, rows, cols, pattern)
