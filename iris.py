@@ -12,6 +12,7 @@ import uuid
 import argparse
 import shutil
 import cv2
+import ntpath
 from ast import literal_eval as make_tuple
 
 JAR_PATH = "MIST-wdeps.jar"
@@ -28,7 +29,7 @@ DEFAULT_STITCHING_OPTIONS = {
     "startTile": "1",
     "filenamePattern": "\"1_XY02_00{ppp}_CH1.tif\"",
     "imageDir": "",
-    "outputFullImage": "true",
+    "outputFullImage": "false",
     "startRow": "0",
     "startCol": "0",
     "extentWidth": "12",
@@ -66,7 +67,6 @@ def get_row_col(path):
     # TODO throw error (file not found)
     return None, None
 
-
 def prep_single_channel(file_list, output_dir):
     """
     Convert single channel images into the grayscale space
@@ -95,7 +95,7 @@ def get_patterned_files(path, pattern):
         else:
             return patterned_files
 
-def stitch(image_dir, output_dir, rows, cols, pattern, positions=None):
+def mist(image_dir, output_dir, rows, cols, pattern, positions=None):
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
@@ -106,13 +106,15 @@ def stitch(image_dir, output_dir, rows, cols, pattern, positions=None):
     options["gridHeight"] = rows
     options["extentWidth"] = cols
     options["extentHeight"] = rows
+    options["filenamePattern"] = "\"%s\"" % (pattern)
     if (positions):
         options["globalPositionsFile"] = positions
-
     args = []
     for switch in options:
         args.append("--" + switch)
         args.append(options[switch])
+
+    print(args)
 
     subprocess.call(["java", "-jar", JAR_PATH] + args)
 
@@ -123,7 +125,17 @@ def from_colon_format(s):
     """
     return s.split(":")[1].strip()
 
-def extract_positions(positions_path):
+def add_positions_to_folders(positions, channels, stitch_dir):
+    for channel in channels:
+        encode_positions(positions, stitch_dir, original, channel)
+
+def encode_positions(positions, out_path, channel):
+    with open(out_path, 'w') as out:
+        for p in positions:
+            out.write("file: %s; corr: %s; position: %s; grid: %s;\n" % 
+                    (p['file'] % (channel), p['corr'], p['position'], p['grid']))
+
+def extract_positions(positions_path, channel):
     """
     Extracts position information from a global positions file
     """
@@ -133,26 +145,67 @@ def extract_positions(positions_path):
             line = line.strip()
             fields = line.split(";")
             positions.append({
-                "file":from_colon_format(fields[0]),
+                "file":from_colon_format(fields[0]).replace(channel, "%s"),
+                "corr": from_colon_format(fields[1]),
                 "position": from_colon_format(fields[2]),
                 "grid": from_colon_format(fields[3])
                 })
-    return corners
+    return positions
 
-def output_positions(positions, out_path, channel, replace):
-    with open(out_path, 'w') as out:
-        for p in positions:
-            out.write("file: %s; corr: %s; position: %s; grid: %s;\n" % 
-                    (p['file'].replace(channel, replace), p['corr'], p['position'], p['grid']))
+def prep_image_folders(src_dir, stitch_dir, pattern_format, channels):
+    """
+    Prepare the image files by moving them into their own directories
+    and setting the images to the proper colorspace
+    """
 
-options = DEFAULT_STITCHING_OPTIONS
-SRC_DIR = "/home/padiauj/image_analysis/XY02/"
-stitch_dir = os.path.join(SRC_DIR, "stitched")
-rows, cols = get_row_col(SRC_DIR)
+    for channel in channels:
+        pattern = pattern_format % (channel)
+        image_dir = os.path.join(stitch_dir, channel)
+        os.mkdir(image_dir)
+        patterned_files = get_patterned_files(src_dir, pattern)
+        if (channel == "Overlay"):
+            for f in patterned_files:
+                shutil.copy(f, image_dir)
+        else:
+            prep_single_channel(patterned_files, image_dir)
 
+def composite(image_dir, positions):
+    if (os.path.exists(f)):
+        subprocess.check_call([
+            "composite", "-geometry", "-colorspace", "Gray", "-separate",])
+    for pos in positions:
+        f = os.path.join(image_dir, pos['file'])
+        pos_tuple = make_tuple(pos['position'])
+        magick_geometry = "+"
+        if (os.path.exists(f)):
+            subprocess.check_call([
+                "composite", "-geometry", "-colorspace", "Gray", "-separate",])
+        else:
+            raise ValueError("Cannot find file %s" % (pos['file']))
+
+
+prefix = "1_XY02"
+channel_for_mist = "CH1"
 channels = ["CH1", "CH2", "CH3", "CH4", "Overlay"]
-pattern = "1_XY02_{ppppp}_CH1.tif"
-image_dir = os.path.join(stitch_dir, "CH1")
-patterned_files = get_patterned_files(SRC_DIR, pattern)
-prep_single_channel(patterned_files, image_dir)
-stitch(image_dir, image_dir, rows, cols, pattern)
+pattern_format = prefix + "_{ppppp}_%s.tif"
+SRC_DIR = "/home/padiauj/image_analysis/XY02/"
+
+stitch_dir = os.path.join(SRC_DIR, "stitched")
+if os.path.exists(stitch_dir):
+    shutil.rmtree(stitch_dir)
+
+os.mkdir(stitch_dir)
+
+prep_image_folders(SRC_DIR, stitch_dir, pattern_format, channels)
+
+rows, cols = get_row_col(SRC_DIR)
+pattern = pattern_format % (channel_for_mist)
+mist(SRC_DIR, stitch_dir, rows, cols, pattern)
+positions = extract_positions(os.path.join(stitch_dir, "img-global-positions-1.txt"), channel_for_mist)
+
+for channel in channels:
+    if (channel_for_mist != channel):
+        positions_path = os.path.join(stitch_dir, "positions.txt")
+        encode_positions(positions, positions_path, channel)
+        pattern = pattern_format % (channel)
+        mist(SRC_DIR, os.path.join(stitch_dir, channel), rows, cols, pattern, positions=positions_path)
