@@ -5,8 +5,8 @@
 import os
 import argparse
 import logging
-from KeyenceRun import KeyenceRun
-from tile import TileSequence
+from iris.KeyenceRun import KeyenceRun
+from iris.tile import TileSequence
 import sys
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -26,7 +26,7 @@ def dir_path(d):
         raise NotADirectoryError(d)
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(
         description="Iris: Stitch images from fluorescence microscopy")
     parser.add_argument(

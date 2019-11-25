@@ -14,7 +14,7 @@ import subprocess
 import cv2
 import numpy as np
 
-from tile import TileSequence
+from iris.tile import TileSequence
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger()

@@ -6,7 +6,7 @@ import PIL
 import subprocess
 import logging
 import os
-import mist
+import iris.mist
 import numpy as np
 import cv2
 
@@ -23,6 +23,8 @@ class Tile:
     A Tile represents an image (with possibly multiple channels) taken in one 
     physical location on the stage. The Tile stores a variable number of named
     channels and stores a path to the file for each channel in the tile.
+
+    NOTE: channels can only be grayscale images.
 
     Attributes:
         channels: A dictionary indexed on the channel name that provides the 
