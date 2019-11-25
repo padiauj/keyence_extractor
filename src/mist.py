@@ -53,11 +53,12 @@ def filename_to_number(s):
 
 
 def extract_corners(positions_path):
-    """ Extracts position information from a MIST global positions file
+    """ Extracts position information from a MIST global positions file.
+
     Args:
-        positions_path: path to MIST global positions file
+        positions_path: path to MIST global positions file.
     Returns:
-        A dictionary indexed by tile number containing the corners of that tile.
+        A dictionary indexed by tile number containing the corners of the tile.
     """
     corners = {}
     with open(positions_path, 'r') as f:
@@ -73,18 +74,23 @@ def extract_corners(positions_path):
 def stitch(image_dir, out_dir, rows, cols, shelloutput=True, remove=True):
     """ Executes MIST against an image directory containing images to be stitched.
 
-    MIST uses phase correlation and peak refinement methods to determine the translations of adjacent images, and ultimately determine absolute positions for unstitched images. 
+    MIST uses phase correlation and peak refinement methods to determine the 
+    translations of adjacent images, and ultimately determine absolute 
+    positions for unstitched images. 
 
     Args:
-        image_dir: directory containing unstitched images (of filename form 00001.tif, 00002.tif, ...)
+        image_dir: directory containing unstitched images (of filename form 
+            00001.tif, 00002.tif, ...)
         out_dir: directory to store MIST output
         rows: Rows in image grid
         cols: Columns in image grid
         shelloutput: `True` if shell output is desired, `False` otherwise
-        remove: `True` if MIST output is to be deleted after data extraction, `False` otherwise
+        remove: `True` if MIST output is to be deleted after data extraction, 
+            `False` otherwise
     
     Returns:
-        A dictionary indexed by image number containing the top-right coordinate of the absolute position in the stitching.
+        A dictionary indexed by image number containing the top-right 
+        coordinate of the absolute position in the stitching.
     """
 
     options = DEFAULT_STITCHING_OPTIONS

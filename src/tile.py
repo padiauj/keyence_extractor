@@ -25,8 +25,10 @@ class Tile:
     channels and stores a path to the file for each channel in the tile.
 
     Attributes:
-        channels: A dictionary indexed on the channel name that provides the path to the underlying image data for that channel
-        quant: A dictionary indexed on the coordinate (x,y) contains quantifications (cell count) at x,y positions
+        channels: A dictionary indexed on the channel name that provides the 
+            path to the underlying image data for that channel
+        quant: A dictionary indexed on the coordinate (x,y) contains 
+            quantifications (cell count) at x,y positions
     """
     def __init__(self):
         """ Initializes channel data and quantification data. """
@@ -36,11 +38,13 @@ class Tile:
     def add_channel(self, name, path):
         """ Adds a channel to this tile.
 
-        Given a path to the image-channel and a name for the channel, the information is added to the unordered channel dictionary
+        Given a path to the image-channel and a name for the channel, the 
+        information is added to the unordered channel dictionary
 
         Args:
             name: A string with the channel name
-            path: path to the file representing the image and channel for this Tile
+            path: path to the file representing the image and channel for this
+                Tile
         """
         # TODO validate image, incl size
         self.channels[name] = path
@@ -52,17 +56,22 @@ class Tile:
 class TileSequence:
     """ A sequence of tiles that are organized in an overlapping grid pattern. 
 
-    A TileSequence represents a sequence of Tile (multi-channel images) objects that are overlapping with each other, which is indicative of a microscope that takes images as the stage moves. 
+    A TileSequence represents a sequence of Tile (multi-channel images) objects
+    that are overlapping with each other, which is indicative of a microscope
+    that takes images as the stage moves. 
 
     Attributes:
         path: Path to the standardized folder structure for tile sequences
         tile_size: A tuple of the size of each tile (width, height)
-        rows: Number of rows in the tiled grid pattern (rows of overlapping images)
-        cols: Number of columns in the tiled grid pattern (columns of overlapping images)
-        channels: The channels that are present for each of the Tile objects in this sequence
+        rows: Number of rows in the tiled grid pattern (rows of overlapping 
+            images)
+        cols: Number of columns in the tiled grid pattern (columns of 
+            overlapping images)
+        channels: The channels that are present for each of the Tile objects in
+            this sequence
     """
     def __init__(self, path, tile_size, rows, cols, channels):
-        """ Initializes a TileSequence given metadata and a standard folder structure. """
+        """ Initializes a TileSequence given metadata and the folder structure. """
         self.path = path
         self.rows = rows
         self.cols = cols
@@ -76,7 +85,8 @@ class TileSequence:
     def tile_fname(num):
         """ Convert a tile number into an image filename.
 
-        A tile file has a standard filename (e.g. 00001.tif). The format uses ZFILL_SIZE zero padding and tile numbers starting at 1.
+        A tile file has a standard filename (e.g. 00001.tif). The format uses 
+        ZFILL_SIZE zero padding and tile numbers starting at 1.
 
         Args:
             num: An integer representing the tile number
@@ -87,7 +97,7 @@ class TileSequence:
         return str(num).zfill(ZFILL_SIZE) + TILE_IMAGE_EXTENSION
 
     def assemble_tiles(self):
-        """ Traverse TileSequence path to create Tile objects representing the constituent tiles. """
+        """ Traverse TileSequence path for new Tiles from images."""
         for i in range(1, self.rows * self.cols + 1):
             tile = Tile()
             for channel in self.channels:
@@ -99,10 +109,13 @@ class TileSequence:
     def stitch(self, channel):
         """ Use MIST to discover positions (corners) for each of the Tiles according to a single channel
 
-        MIST uses phase correlation between images to determine the amount of translation between images. This is used to determine the absolute position of each image tile in a larger 'stitched' image. 
+        MIST uses phase correlation between images to determine the amount of 
+        translation between images. This is used to determine the absolute 
+        position of each image tile in a larger 'stitched' image. 
 
         Args:
-            channel: A string channel name, the images of which will be used to determine the position of each tile. 
+            channel: A string channel name, the images of which will be used 
+                to determine the position of each tile. 
         """
         channel_dir = os.path.join(self.path, channel)
         # TODO check if channel exists
@@ -123,13 +136,15 @@ class TileSequence:
     def blend(self, channel):
         """ Blends images of a channel according to the Tile positions.
 
-        The corners from the stitching are used to position the tiles in the composite. Tiles are blended using averaging. Note that blended images probably should not be used for quantification because of blending.
+        The corners from the stitching are used to position the tiles in the 
+        composite. Tiles are blended using averaging. Note that blended images
+        probably should not be used for quantification because of blending.
 
         Args:
-            channel: channel to be blended
+            channel: channel to be blended.
         
         Returns:
-            An image representing the blended composite of the Tiles 
+            An image representing the blended composite of the Tiles.
         """
         output = np.zeros(self.full_size, dtype=np.uint16)
         logger.debug("Blend output size {}".format(output.shape))
